@@ -19,7 +19,9 @@ import com.compuware.apm.ruxit.synth.analyzer.resptime.strategy.TestSimpleRespon
 		TestResponseTimeConfigBuilder.class, TestInputSource.class,
 		TestTupleSourceInputService.class, TestTupleSourceReaderService.class,
 		TestSimpleResponseTimeTupleParser.class,
-		TestSimpleResponseTimeStrategy.class })
+		TestSimpleResponseTimeStrategy.class,
+		TestSimpleResponseTimeAnalyzer.class,
+		TestBinomialTestResponseTimeAnalyzer.class })
 public class AllTests {
 
 }

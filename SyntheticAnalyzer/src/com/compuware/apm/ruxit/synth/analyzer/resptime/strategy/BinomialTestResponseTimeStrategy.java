@@ -6,7 +6,7 @@ import static com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTim
 import static com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTimeConfigProperties.MIN_EVALUATION_GAP;
 import static com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTimeConfigProperties.MIN_SAMPLE_SIZE;
 import static com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTimeConfigProperties.OUT_OF_ORDER_THRESHOLD;
-import static com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTimeConfigProperties.SAMPLE_SIZE_STRATEGY_THRESHOLD;
+import static com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTimeConfigProperties.*;
 import static com.compuware.apm.ruxit.synth.analyzer.resptime.model.ResponseTimeAttributes.RESPONSE_TIME;
 import static com.compuware.apm.ruxit.synth.analyzer.resptime.model.ResponseTimeAttributes.TEST_TIME;
 
@@ -103,10 +103,11 @@ public class BinomialTestResponseTimeStrategy extends AbstractResponseTimeStrate
 			boolean shouldAlert = binomialTest.binomialTest(queue.size(), numBreaches,
 					config.get(DEFAULT_ANOMALY_THRESHOLD),
 					AlternativeHypothesis.GREATER_THAN, ALPHA);
-			// comment out the following two lines when not testing; should really be nested in log.isDebugEnabled()
-			double p = BinomialTestUtil.getCumulativeProbability(queue.size(), numBreaches, config.get(DEFAULT_ANOMALY_THRESHOLD));
-			System.out.printf("time=%d, key=%s, numBreaches=%d, queueSize=%d, errorRate=%,.10f, p=%,.10f, shouldAlert=%s%n", getCurrentTime(), SimpleParserUtil.toString(this.key),numBreaches, queue.size(), getErrorRate(), p, String.valueOf(shouldAlert));
-            
+			// TODO: replace the following clause with logging statements
+			if (config.get(DEBUG)) {
+			   double p = BinomialTestUtil.getCumulativeProbability(queue.size(), numBreaches, config.get(DEFAULT_ANOMALY_THRESHOLD));
+			   System.out.printf("time=%d, key=%s, numBreaches=%d, queueSize=%d, errorRate=%,.10f, p=%,.10f, shouldAlert=%s%n", getCurrentTime(), SimpleParserUtil.toString(this.key),numBreaches, queue.size(), getErrorRate(), p, String.valueOf(shouldAlert));
+			}
 			return shouldAlert;
 		}		
 	}

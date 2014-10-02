@@ -12,6 +12,9 @@ import com.compuware.apm.ruxit.synth.analyzer.model.Attributes;
 
 public class ResponseTimeConfigProperties {
 	
+	// Temporary debug flag until we integrate with a logging library
+	public static final Attribute<Boolean> DEBUG = new Attribute<>(Boolean.class, "DEBUG", false);
+
 	// Use the binomial test only if the sample size is 50 or less; otherwise, just check to see if the error rate exceeds the default threshold
 	public static final Attribute<Integer> SAMPLE_SIZE_STRATEGY_THRESHOLD = new Attribute<>(Integer.class, "SAMPLE_SIZE_STRATEGY_THRESHOLD", 50);
 	
@@ -43,7 +46,7 @@ public class ResponseTimeConfigProperties {
 	public static final Attribute<Long> CLOCK_TICK_INTERVAL = new TimeUnitAttribute("CLOCK_TICK_INTERVAL", TimeUnit.MINUTES, 5L);              
 	
 	private static final Attribute<?>[] values = {
-			SAMPLE_SIZE_STRATEGY_THRESHOLD,
+			DEBUG, SAMPLE_SIZE_STRATEGY_THRESHOLD,
 			DEFAULT_ANOMALY_THRESHOLD, DEFAULT_RETURN_TO_NORMAL_THRESHOLD,
 			MIN_SAMPLE_SIZE, OUT_OF_ORDER_THRESHOLD, MAX_QUEUE_SIZE,
 			MAX_QUEUE_TIME_WINDOW, MIN_EVALUATION_GAP, MAX_STRATEGY_IDLE_TIME,

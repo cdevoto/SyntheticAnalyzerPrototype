@@ -48,7 +48,7 @@ public class TestResponseTimeConfigBuilder {
 		}
 		Tuple config = builder.build();
 
-		assertThat(config.get(SAMPLE_SIZE_STRATEGY_THRESHOLD), equalTo(40));
+		assertThat(config.get(SAMPLE_SIZE_STRATEGY_THRESHOLD), equalTo(50));
 		assertThat(config.get(DEFAULT_ANOMALY_THRESHOLD), equalTo(0.1));
 		assertThat(config.get(DEFAULT_RETURN_TO_NORMAL_THRESHOLD), equalTo(0.05));
 		assertThat(config.get(MIN_SAMPLE_SIZE), equalTo(3));
