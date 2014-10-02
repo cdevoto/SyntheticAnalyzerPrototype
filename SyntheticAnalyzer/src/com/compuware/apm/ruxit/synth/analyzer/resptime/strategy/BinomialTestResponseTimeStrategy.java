@@ -1,0 +1,233 @@
+package com.compuware.apm.ruxit.synth.analyzer.resptime.strategy;
+
+import static com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTimeConfigProperties.DEFAULT_ANOMALY_THRESHOLD;
+import static com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTimeConfigProperties.MAX_QUEUE_SIZE;
+import static com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTimeConfigProperties.MAX_QUEUE_TIME_WINDOW;
+import static com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTimeConfigProperties.MIN_EVALUATION_GAP;
+import static com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTimeConfigProperties.MIN_SAMPLE_SIZE;
+import static com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTimeConfigProperties.OUT_OF_ORDER_THRESHOLD;
+import static com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTimeConfigProperties.SAMPLE_SIZE_STRATEGY_THRESHOLD;
+import static com.compuware.apm.ruxit.synth.analyzer.resptime.model.ResponseTimeAttributes.RESPONSE_TIME;
+import static com.compuware.apm.ruxit.synth.analyzer.resptime.model.ResponseTimeAttributes.TEST_TIME;
+
+import java.util.Comparator;
+import java.util.PriorityQueue;
+
+import org.apache.commons.math3.stat.inference.AlternativeHypothesis;
+import org.apache.commons.math3.stat.inference.BinomialTest;
+
+import com.compuware.apm.ruxit.synth.analyzer.model.Attribute;
+import com.compuware.apm.ruxit.synth.analyzer.model.Attributes;
+import com.compuware.apm.ruxit.synth.analyzer.model.Tuple;
+import com.compuware.apm.ruxit.synth.analyzer.model.TupleImpl;
+import com.compuware.apm.ruxit.synth.analyzer.output.AnalyzerEvent;
+import com.compuware.apm.ruxit.synth.analyzer.resptime.util.BinomialTestUtil;
+import com.compuware.apm.ruxit.synth.analyzer.resptime.util.SimpleParserUtil;
+
+public class BinomialTestResponseTimeStrategy extends AbstractResponseTimeStrategy {
+
+	private static final double ALPHA = 0.05;
+	private static final Attribute<Long> QUEUE_TUPLE_TIME = new Attribute<>(Long.class, "QUEUE_TUPLE_TIME");
+	private static final Attribute<Boolean> QUEUE_TUPLE_BREACH = new Attribute<>(Boolean.class, "QUEUE_TUPLE_BREACH");
+	private static final Attributes QUEUE_TUPLE_SCHEMA = Attributes.newAttributes()
+			.withAttribute(QUEUE_TUPLE_TIME)
+			.withAttribute(QUEUE_TUPLE_BREACH)
+			.build();
+
+	
+	private long timeOfLastEval = 0;
+	private int numBreaches = 0;
+	private PriorityQueue<Tuple> queue = new PriorityQueue<>(this.config.get(MAX_QUEUE_SIZE) + 1, new QueueTupleComparator());	
+    private BinomialTest binomialTest = new BinomialTest();
+    private Tuple mostRecentTupleInQueue = null;
+
+	public static Builder newBinomialTestResponseTimeStrategy (Attributes keyAttributes) {
+    	return new Builder(keyAttributes);
+    }
+    
+    private BinomialTestResponseTimeStrategy (Builder builder) {
+    	super(builder);
+    }
+    
+	@Override
+	protected final void handleOnTupleReceived(Tuple tuple) {
+		long tupleTime = tuple.get(TEST_TIME);
+		if (tupleTime < getCurrentTime() - config.get(OUT_OF_ORDER_THRESHOLD)) {
+			return; // the observation received is too stale, so we ignore it
+		}
+		
+		long testTime = tuple.get(TEST_TIME);
+		if (testTime >= this.timeOfLastTuple) {
+		    this.timeOfLastTuple = testTime;
+		    this.mostRecentTupleInQueue = tuple; 
+		}
+
+		Tuple queueTuple = newQueueTuple(tuple);
+		addTupleToQueue(queueTuple);
+		
+		adjustQueueBasedOnConstraints();
+		
+		if (isEligibleForEval()) {
+			performEval(tuple);
+		}
+	}
+
+	@Override
+	protected final void handleOnClockTick(long time) {
+		this.timeOfLastTick = time;
+		boolean queueChanged = adjustQueueBasedOnConstraints();
+		
+		if (queueChanged && isEligibleForEval()) {
+			Tuple tuple = getMostRecentTupleInQueue();
+			performEval(tuple);
+		}
+	}
+
+	private void performEval(Tuple tuple) {
+		this.timeOfLastEval = getCurrentTime();
+		if (status == Status.NORMAL && shouldAlert()) {
+			generateEvent(AnalyzerEvent.Type.ALERT, this.timeOfLastTuple, tuple);
+		} else if (status == Status.ALERT && !shouldAlert()) {
+			generateEvent(AnalyzerEvent.Type.RETURN_TO_NORMAL, this.timeOfLastTuple, tuple);
+		}
+	}
+	
+	private boolean shouldAlert() {
+		if (queue.size() > config.get(SAMPLE_SIZE_STRATEGY_THRESHOLD)) {
+			double errorRate = getErrorRate();
+			if (errorRate > config.get(DEFAULT_ANOMALY_THRESHOLD)) {
+				return true;
+			}
+			return false;
+		} else {
+			boolean shouldAlert = binomialTest.binomialTest(queue.size(), numBreaches,
+					config.get(DEFAULT_ANOMALY_THRESHOLD),
+					AlternativeHypothesis.GREATER_THAN, ALPHA);
+			// comment out the following two lines when not testing; should really be nested in log.isDebugEnabled()
+			double p = BinomialTestUtil.getCumulativeProbability(queue.size(), numBreaches, config.get(DEFAULT_ANOMALY_THRESHOLD));
+			System.out.printf("time=%d, key=%s, numBreaches=%d, queueSize=%d, errorRate=%,.10f, p=%,.10f, shouldAlert=%s%n", getCurrentTime(), SimpleParserUtil.toString(this.key),numBreaches, queue.size(), getErrorRate(), p, String.valueOf(shouldAlert));
+            
+			return shouldAlert;
+		}		
+	}
+
+	private double getErrorRate() {
+		return ((double) numBreaches) / queue.size();
+	}
+
+	private boolean isEligibleForEval () {
+		return queue.size() >= config.get(MIN_SAMPLE_SIZE) && 
+				getCurrentTime() - config.get(MIN_EVALUATION_GAP) >= this.timeOfLastEval;
+	}
+	
+	
+	private boolean adjustQueueBasedOnConstraints() {
+		long currentTime = getCurrentTime();
+		boolean queueChanged = false;
+		
+		// Remove records from the head of the queue if the
+		// the queue is too big
+		while (queue.size() > this.config.get(MAX_QUEUE_SIZE)) {
+			queueChanged = true;
+			removeTupleFromQueue();
+		}
+		
+		// Age off any records from the head of the queue if they fall
+		// outside the queue time window
+		while (!queue.isEmpty() && queue.peek().get(QUEUE_TUPLE_TIME) <= currentTime
+						- config.get(MAX_QUEUE_TIME_WINDOW)) {
+			 queueChanged = true;
+			 removeTupleFromQueue();
+		}
+		
+		// If the queue becomes empty when it was full, or full when it was
+		// empty, adjust the strategy state and notify listeners.
+		adjustStrategyState();
+		
+		return queueChanged;
+	}
+
+	private void adjustStrategyState() {
+		if (queue.isEmpty() && state == State.ACTIVE) {
+			if (status == Status.ALERT) {
+				generateEvent(AnalyzerEvent.Type.TIME_OUT, getCurrentTime(), TupleImpl.NULL);
+			}
+			state = State.IDLE;
+			notifyStrategyListeners(this);
+		} else if (!queue.isEmpty() && state == State.IDLE) {
+			state = State.ACTIVE;
+			notifyStrategyListeners(this);
+		}
+	}
+
+	private Tuple getMostRecentTupleInQueue () {
+		return this.mostRecentTupleInQueue;
+	}
+	private void addTupleToQueue(Tuple queueTuple) {
+		queue.add(queueTuple);
+        if (queueTuple.get(QUEUE_TUPLE_BREACH)) {
+        	numBreaches++;
+        }
+	}
+
+	private void removeTupleFromQueue() {
+		Tuple queueTuple = queue.poll();
+        if (queueTuple.get(QUEUE_TUPLE_BREACH)) {
+        	numBreaches--;
+        }
+        if (queue.isEmpty()) {
+        	this.mostRecentTupleInQueue = null;
+        }
+	}
+
+	private Tuple newQueueTuple (Tuple sourceTuple) {
+		boolean breach = isThresholdBreach(sourceTuple);
+		Tuple queueTuple = TupleImpl.newTuple(QUEUE_TUPLE_SCHEMA)
+				.withValue(QUEUE_TUPLE_TIME, sourceTuple.get(TEST_TIME))
+				.withValue(QUEUE_TUPLE_BREACH, breach)
+				.build();
+		return queueTuple;
+	}
+
+	private boolean isThresholdBreach(Tuple tuple) {
+		double responseTime = tuple.get(RESPONSE_TIME);
+		double threshold = thresholds.getThreshold(this.key);
+		return responseTime >= threshold;
+	}
+	
+	private long getCurrentTime () {
+		return Math.max(this.timeOfLastTick, this.timeOfLastTuple);
+	}
+
+	public static class Builder extends AbstractResponseTimeStrategy.Builder {
+		
+		private Builder (Attributes keyAttributes) {
+			super(keyAttributes);
+		}
+
+		@Override
+		protected final AbstractResponseTimeStrategy doBuild() {
+			return new BinomialTestResponseTimeStrategy(this);
+		}
+	}
+	
+	private static class QueueTupleComparator implements Comparator<Tuple> {
+
+		@Override
+		public int compare(Tuple t1, Tuple t2) {
+			long testTime1 = t1.get(QUEUE_TUPLE_TIME);
+			long testTime2 = t2.get(QUEUE_TUPLE_TIME);
+			long diff = testTime1 - testTime2;
+			if (diff < 0) {
+				return -1;
+			} else if (diff > 0) {
+				return 1;
+			} 
+			return 0;
+		}
+		
+	}
+	
+
+
+}
