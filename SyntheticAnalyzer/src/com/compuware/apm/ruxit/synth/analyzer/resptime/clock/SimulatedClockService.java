@@ -48,6 +48,7 @@ public class SimulatedClockService extends AbstractClockService implements Tuple
 		this.tupleSource.removeTupleListener(this);
 	}
 
+
 	@Override
 	public void onTupleReceived(Tuple tuple) {
 		Long time = tuple.get(this.timeAttribute);
@@ -67,7 +68,10 @@ public class SimulatedClockService extends AbstractClockService implements Tuple
 		}
 	}
 	
-	public Long getTime () {
+	public long getTime () {
+		if (this.lastTick == null) {
+			return 0;
+		}
 		return this.lastTick;
 	}
 	

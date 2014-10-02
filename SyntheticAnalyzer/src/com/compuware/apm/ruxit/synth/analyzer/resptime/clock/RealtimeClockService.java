@@ -34,6 +34,16 @@ public class RealtimeClockService extends AbstractClockService implements Runnab
 	public void stop () {
 		scheduler.shutdown();
 	}
+	
+	@Override
+	public long getTime() {
+		return System.currentTimeMillis();
+	}
+	
+	@Override
+	public void notify(long time) {
+		notifyClockListeners(time);
+	}
 
 	@Override
 	public void run() {

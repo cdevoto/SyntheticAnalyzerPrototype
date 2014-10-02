@@ -2,7 +2,6 @@ package com.compuware.apm.ruxit.synth.analyzer.resptime;
 
 import static com.compuware.apm.ruxit.synth.analyzer.resptime.util.TupleGenerationConfig.newTupleGenerationConfig;
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
@@ -16,14 +15,11 @@ import org.junit.Test;
 
 import com.compuware.apm.ruxit.synth.analyzer.Analyzer;
 import com.compuware.apm.ruxit.synth.analyzer.AnalyzerFactory;
-import com.compuware.apm.ruxit.synth.analyzer.clock.ClockService;
 import com.compuware.apm.ruxit.synth.analyzer.model.Attributes;
 import com.compuware.apm.ruxit.synth.analyzer.model.Tuple;
 import com.compuware.apm.ruxit.synth.analyzer.model.TupleImpl;
 import com.compuware.apm.ruxit.synth.analyzer.output.AnalyzerEvent;
 import com.compuware.apm.ruxit.synth.analyzer.output.EventListener;
-import com.compuware.apm.ruxit.synth.analyzer.resptime.clock.SimulatedClockService;
-import com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTimeConfigProperties;
 import com.compuware.apm.ruxit.synth.analyzer.resptime.input.InputSource;
 import com.compuware.apm.ruxit.synth.analyzer.resptime.input.StringInputSource;
 import com.compuware.apm.ruxit.synth.analyzer.resptime.model.ResponseTimeAttributes;
@@ -133,7 +129,6 @@ public class TestBinomialTestResponseTimeAnalyzer {
 
 		
 		boolean verbose = true;
-		long timeOfLastTuple = tuples.get(tuples.size() - 1).get(ResponseTimeAttributes.TEST_TIME);
 	
 		String inputString = SimpleParserUtil.toString(tuples);
 		InputSource inputSource = new StringInputSource(inputString);
@@ -156,11 +151,6 @@ public class TestBinomialTestResponseTimeAnalyzer {
 		});
 		
 		analyzer.start();
-		ClockService clockService = analyzer.getClockService();
-		assertThat(clockService, instanceOf(SimulatedClockService.class));
-		Tuple config = analyzer.getConfig();
-		
-		((SimulatedClockService) clockService).notify(timeOfLastTuple + config.get(ResponseTimeConfigProperties.MAX_STRATEGY_IDLE_TIME));
 		analyzer.stop();
 		
 		if (verbose) {

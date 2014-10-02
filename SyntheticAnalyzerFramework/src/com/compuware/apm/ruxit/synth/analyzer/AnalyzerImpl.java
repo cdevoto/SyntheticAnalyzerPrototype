@@ -109,6 +109,9 @@ public class AnalyzerImpl implements Analyzer {
 
 	@Override
 	public void stop() {
+		// Send out a clock tick that will cause the strategies to time out
+		this.clockService.notify(this.clockService.getTime() + strategyTimeOut);
+		
 		this.clockService.stop();
 		this.tupleSourceService.stop();
 	}

@@ -106,11 +106,18 @@ public abstract class AbstractResponseTimeAnalyzerFactory implements AnalyzerFac
     		return this;
     	}
     	
+    	public Builder withThresholds (ResponseTimeThresholdConfig thresholds) {
+    		this.thresholds = thresholds;
+    		return this;
+    	}
+    	
     	public AbstractResponseTimeAnalyzerFactory build () {
     		BuilderUtil.validateNotNull("inputSource", inputSource);
     		BuilderUtil.validateNotNull("configProps", configProps);
     		this.config = createConfig(this.configProps);
-    		this.thresholds = createThresholds(this.keyAttributes);
+    		if (this.thresholds == null) {
+    		    this.thresholds = createThresholds(this.keyAttributes);
+    		}
     		return doBuild();
     	}
     	
