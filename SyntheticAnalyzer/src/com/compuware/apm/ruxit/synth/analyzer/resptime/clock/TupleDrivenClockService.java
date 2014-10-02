@@ -9,7 +9,7 @@ import com.compuware.apm.ruxit.synth.analyzer.model.Attribute;
 import com.compuware.apm.ruxit.synth.analyzer.model.Tuple;
 import com.compuware.apm.ruxit.synth.util.BuilderUtil;
 
-public class SimulatedClockService extends AbstractClockService implements TupleListener {
+public class TupleDrivenClockService extends AbstractClockService implements TupleListener {
 
 	private Attribute<Long> timeAttribute;
 	private TupleSource tupleSource;
@@ -24,7 +24,7 @@ public class SimulatedClockService extends AbstractClockService implements Tuple
 		return new Builder();
 	}
 	
-	private SimulatedClockService (Builder builder) {
+	private TupleDrivenClockService (Builder builder) {
 		if (builder.startTime != null) {
 			this.lastTick = builder.startTime;
 		}
@@ -109,12 +109,12 @@ public class SimulatedClockService extends AbstractClockService implements Tuple
 			return this;
 		}
 		
-		public SimulatedClockService build () {
+		public TupleDrivenClockService build () {
 			BuilderUtil.validateNotNull("timeAttribute", timeAttribute);
 			BuilderUtil.validateNotNull("tupleSource", tupleSource);
 			BuilderUtil.validateNotNull("period", period);
 			BuilderUtil.validateNotNull("timeUnit", timeUnit);
-			return new SimulatedClockService(this);
+			return new TupleDrivenClockService(this);
 		}
 	}
 	

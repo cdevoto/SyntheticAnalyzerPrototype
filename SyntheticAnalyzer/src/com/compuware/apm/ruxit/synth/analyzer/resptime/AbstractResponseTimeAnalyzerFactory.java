@@ -1,7 +1,7 @@
 package com.compuware.apm.ruxit.synth.analyzer.resptime;
 
 import static com.compuware.apm.ruxit.synth.analyzer.model.Attributes.newAttributes;
-import static com.compuware.apm.ruxit.synth.analyzer.resptime.clock.SimulatedClockService.newSimulatedClock;
+import static com.compuware.apm.ruxit.synth.analyzer.resptime.clock.TupleDrivenClockService.newSimulatedClock;
 import static com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTimeConfigTuple.newResponseTimeConfigTuple;
 import static com.compuware.apm.ruxit.synth.analyzer.resptime.input.TupleSourceReaderService.newTupleSourceReaderService;
 import static com.compuware.apm.ruxit.synth.analyzer.resptime.input.parser.SimpleResponseTimeTupleParser.newResponseTimeTupleParser;
@@ -18,7 +18,7 @@ import com.compuware.apm.ruxit.synth.analyzer.input.parser.TupleParser;
 import com.compuware.apm.ruxit.synth.analyzer.model.Attribute;
 import com.compuware.apm.ruxit.synth.analyzer.model.Attributes;
 import com.compuware.apm.ruxit.synth.analyzer.model.Tuple;
-import com.compuware.apm.ruxit.synth.analyzer.resptime.clock.SimulatedClockService;
+import com.compuware.apm.ruxit.synth.analyzer.resptime.clock.TupleDrivenClockService;
 import com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTimeConfigProperties;
 import com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTimeThresholdConfig;
 import com.compuware.apm.ruxit.synth.analyzer.resptime.config.SimpleResponseTimeThresholdConfig;
@@ -92,7 +92,7 @@ public abstract class AbstractResponseTimeAnalyzerFactory implements AnalyzerFac
 	}
 
 	private ClockService createClockService(TupleSourceService tupleSourceService) {
-		SimulatedClockService clockService = newSimulatedClock()
+		TupleDrivenClockService clockService = newSimulatedClock()
 				.withTupleSource(tupleSourceService)
 				.withTimeAttribute(ResponseTimeAttributes.TEST_TIME)
 				.withPeriod(this.config.get(ResponseTimeConfigProperties.CLOCK_TICK_INTERVAL))
