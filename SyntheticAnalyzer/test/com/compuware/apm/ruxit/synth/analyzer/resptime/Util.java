@@ -139,7 +139,7 @@ public class Util {
 		return tuples;
     }
 
-    private static Properties createConfigProps() throws IOException {
+    public static Properties createConfigProps() throws IOException {
 		Properties configProps = new Properties();
 		try (InputStream in = Util.class.getResourceAsStream("config.properties")) {
 			configProps.load(in);
@@ -153,7 +153,7 @@ public class Util {
 	}
 	
 	public static void assertAnalyzerOutputs(List<Tuple> tuples,
-			String[] expectedStrings, AnalyzerFactoryBuilder factoryBuilder, boolean verbose) throws IOException {
+		String[] expectedStrings, AnalyzerFactoryBuilder factoryBuilder, boolean verbose) throws IOException {
 		long timeOfLastTuple = tuples.get(tuples.size() - 1).get(ResponseTimeAttributes.TEST_TIME);
 		
 		String inputString = SimpleParserUtil.toString(tuples);

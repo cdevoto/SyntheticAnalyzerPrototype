@@ -1,14 +1,36 @@
 package com.compuware.apm.ruxit.synth.analyzer.resptime;
 
+import static com.compuware.apm.ruxit.synth.analyzer.resptime.util.TupleGenerationConfig.newTupleGenerationConfig;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.junit.Assert.assertThat;
+
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
 
+import com.compuware.apm.ruxit.synth.analyzer.Analyzer;
 import com.compuware.apm.ruxit.synth.analyzer.AnalyzerFactory;
+import com.compuware.apm.ruxit.synth.analyzer.clock.ClockService;
+import com.compuware.apm.ruxit.synth.analyzer.model.Attributes;
 import com.compuware.apm.ruxit.synth.analyzer.model.Tuple;
+import com.compuware.apm.ruxit.synth.analyzer.model.TupleImpl;
+import com.compuware.apm.ruxit.synth.analyzer.output.AnalyzerEvent;
+import com.compuware.apm.ruxit.synth.analyzer.output.EventListener;
+import com.compuware.apm.ruxit.synth.analyzer.resptime.clock.SimulatedClockService;
+import com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTimeConfigProperties;
 import com.compuware.apm.ruxit.synth.analyzer.resptime.input.InputSource;
+import com.compuware.apm.ruxit.synth.analyzer.resptime.input.StringInputSource;
+import com.compuware.apm.ruxit.synth.analyzer.resptime.model.ResponseTimeAttributes;
+import com.compuware.apm.ruxit.synth.analyzer.resptime.util.ResponseTimeStrategyUtil;
+import com.compuware.apm.ruxit.synth.analyzer.resptime.util.SimpleParserUtil;
+import com.compuware.apm.ruxit.synth.analyzer.resptime.util.TupleGenerationConfig;
+import com.compuware.apm.ruxit.synth.analyzer.resptime.util.TupleGenerationUtil;
 
 public class TestBinomialTestResponseTimeAnalyzer {
 
@@ -66,6 +88,91 @@ public class TestBinomialTestResponseTimeAnalyzer {
 		Util.assertAnalyzerOutputs(tuples, expectedStrings, builder, true);
 	}
     
+	@Test
+	public void testTimeout() throws IOException {
+		// Here we test the condition in which an entity goes into
+		// an alert status, but then we stop receiving data.  All records
+		// should eventually age off the queue once they are older than
+		// the max queue time window (3 hours), and at that point, a
+		// TIMEOUT event should be generated.
+		
+    	TupleGenerationConfig genConfig1 = newTupleGenerationConfig()
+		.withKey(TupleImpl.newTuple(Attributes.newAttributes()
+				.withAttribute(ResponseTimeAttributes.TEST_DEF_ID)
+				.withAttribute(ResponseTimeAttributes.STEP_ID)
+				.build())
+				.withValue(ResponseTimeAttributes.TEST_DEF_ID, "1")
+				.withValue(ResponseTimeAttributes.STEP_ID, "1")
+				.build())
+		.withStartTime(1412182929622L)
+		.withMinResponseTime(0.5)
+		.withResponseTimeIncrement(0.1)
+		.withMaxResponseTime(1.5)
+		.withInterval(TimeUnit.MILLISECONDS.convert(5, TimeUnit.MINUTES))
+		.withNumCycles(1)
+		.build();
+		
+		List<Tuple> tuples = TupleGenerationUtil.generateTuples(genConfig1);
+		
+		// The tuple generation algorithm generated an entire cycle of tuples
+		// ranging from the min response time to the max response time and back.
+		// we only want half a cycle, because we want an alert without a return to normal
+		for (int i = tuples.size() - 1; i >= 0; i--) {
+			Tuple tuple = tuples.get(i);
+			if (tuple.get(ResponseTimeAttributes.RESPONSE_TIME) < genConfig1.getMaxResponseTime()) {
+				tuples.remove(i);
+			} else {
+				break;
+			}
+		}
+		
+		String [] expectedStrings = {
+				"[time=1412185029622, type=ALERT, key=1|1, tuple=1412185029622|1|1|1.2000]",
+				"[time=1412196729622, type=TIME_OUT, key=1|1, tuple=null]"
+		};
+
+		
+		boolean verbose = true;
+		long timeOfLastTuple = tuples.get(tuples.size() - 1).get(ResponseTimeAttributes.TEST_TIME);
+	
+		String inputString = SimpleParserUtil.toString(tuples);
+		InputSource inputSource = new StringInputSource(inputString);
+
+		Properties configProps = Util.createConfigProps();
+		Util.AnalyzerFactoryBuilder factoryBuilder = getBuilder();
+		AnalyzerFactory factory = factoryBuilder.build(inputSource, configProps);
+		
+		Analyzer analyzer = factory.newAnalyzer();
+		
+		final List<String> actual = new ArrayList<>();
+		
+		analyzer.addEventListener(new EventListener() {
+			
+			@Override
+			public void onEvent(AnalyzerEvent event) {
+				String eventString = ResponseTimeStrategyUtil.toString(event);
+				actual.add(eventString);
+			}
+		});
+		
+		analyzer.start();
+		ClockService clockService = analyzer.getClockService();
+		assertThat(clockService, instanceOf(SimulatedClockService.class));
+		Tuple config = analyzer.getConfig();
+		
+		((SimulatedClockService) clockService).notify(timeOfLastTuple + config.get(ResponseTimeConfigProperties.MAX_STRATEGY_IDLE_TIME));
+		analyzer.stop();
+		
+		if (verbose) {
+			for (String event : actual) {
+				System.out.println(event);
+			}
+		}
+		List<String> expected = Arrays.asList(expectedStrings);
+        assertThat(actual, equalTo(expected));
+
+	}
+	
 	private Util.AnalyzerFactoryBuilder getBuilder() {
 		Util.AnalyzerFactoryBuilder builder = new Util.AnalyzerFactoryBuilder() {
 			
