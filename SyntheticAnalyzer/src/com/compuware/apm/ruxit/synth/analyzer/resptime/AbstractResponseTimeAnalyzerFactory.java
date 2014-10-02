@@ -32,11 +32,15 @@ import com.compuware.apm.ruxit.synth.util.ParserUtil;
 public abstract class AbstractResponseTimeAnalyzerFactory implements AnalyzerFactory {
 	protected static final String PROP_NAME_PREFIX = "com.compuware.apm.ruxit.synth.analyzer.";
 
-	protected final InputSource inputSource;
-	protected final Tuple config;
-	protected final TupleParser tupleParser;
-	protected final Attributes keyAttributes;
-	protected final ResponseTimeThresholdConfig thresholds;
+	private final InputSource inputSource;
+	private final Tuple config;
+	private final TupleParser tupleParser;
+	private final Attributes keyAttributes;
+	private final ResponseTimeThresholdConfig thresholds;
+	private AnalysisStrategyFactoryBuilder strategyFactoryBuilder;
+	private ClockServiceBuilder clockServiceBuilder; 
+	private TupleSourceServiceBuilder tupleSourceServiceBuilder; 
+	
 	
 	protected AbstractResponseTimeAnalyzerFactory (Builder builder) {
 		this.inputSource = builder.inputSource;
@@ -44,13 +48,26 @@ public abstract class AbstractResponseTimeAnalyzerFactory implements AnalyzerFac
 		this.tupleParser = builder.tupleParser;
 		this.keyAttributes = builder.keyAttributes;
 		this.thresholds = builder.thresholds;
+		this.strategyFactoryBuilder = builder.strategyFactoryBuilder;
+		this.clockServiceBuilder = builder.clockServiceBuilder;
+		this.tupleSourceServiceBuilder = builder.tupleSourceServiceBuilder;
 	}
 	
 	@Override
-	public Analyzer newAnalyzer() {
-		TupleSourceService tupleSourceService = createTupleSourceService();
-		ClockService clockService = createClockService(tupleSourceService);
-		AnalysisStrategyFactory strategyFactory = createAnalysisStrategyFactory();
+	public final Analyzer newAnalyzer() {
+
+		TupleSourceService tupleSourceService = this.tupleSourceServiceBuilder != null ?
+				this.tupleSourceServiceBuilder.build() :
+				createTupleSourceService();
+				
+		ClockService clockService = this.clockServiceBuilder != null ?
+				this.clockServiceBuilder.build(tupleSourceService) :
+				createClockService(tupleSourceService);
+		
+		AnalysisStrategyFactory strategyFactory = this.strategyFactoryBuilder != null ?
+				this.strategyFactoryBuilder.build(this.keyAttributes, this.config, this.thresholds) :
+				createAnalysisStrategyFactory(this.keyAttributes, this.config, this.thresholds);
+		
 		Analyzer analyzer = AnalyzerImpl.newAnalyzer()
 				.withClockService(clockService)
 				.withTupleSourceService(tupleSourceService)
@@ -59,13 +76,14 @@ public abstract class AbstractResponseTimeAnalyzerFactory implements AnalyzerFac
 				.withStrategyFactory(strategyFactory)
 				.withConfig(this.config)
 				.build();
+		
 		return analyzer;
 	}
 
 
-	protected abstract AnalysisStrategyFactory createAnalysisStrategyFactory ();
+	protected abstract AnalysisStrategyFactory createAnalysisStrategyFactory (Attributes keyAttributes, Tuple config, ResponseTimeThresholdConfig thresholds);
 
-	protected TupleSourceService createTupleSourceService() {
+	private TupleSourceService createTupleSourceService() {
 		TupleSourceReaderService tupleSourceService = newTupleSourceReaderService()
 				.withInputSource(this.inputSource)
 				.withTupleParser(this.tupleParser)
@@ -73,7 +91,7 @@ public abstract class AbstractResponseTimeAnalyzerFactory implements AnalyzerFac
 		return tupleSourceService;
 	}
 
-	protected ClockService createClockService(TupleSourceService tupleSourceService) {
+	private ClockService createClockService(TupleSourceService tupleSourceService) {
 		SimulatedClockService clockService = newSimulatedClock()
 				.withTupleSource(tupleSourceService)
 				.withTimeAttribute(ResponseTimeAttributes.TEST_TIME)
@@ -84,20 +102,24 @@ public abstract class AbstractResponseTimeAnalyzerFactory implements AnalyzerFac
 	}
 
 	public static abstract class Builder {
-    	protected InputSource inputSource;
-    	protected Properties configProps;
-       	protected final Attributes tupleSchema = ResponseTimeAttributes.ATTRIBUTES;
-   	    protected Attributes keyAttributes;
-    	protected TupleParser tupleParser;
-    	protected Tuple config;
-    	protected ResponseTimeThresholdConfig thresholds;
+      	private static final Attributes tupleSchema = ResponseTimeAttributes.ATTRIBUTES;
+      	
+      	protected InputSource inputSource; // mandatory
+    	protected Properties configProps; // mandatory
+    	protected Tuple config; // derived
+    	
+   	    protected Attributes keyAttributes; // optional; default is TEST_DEF, STEP_ID
+    	protected TupleParser tupleParser; // optional; default is simple tuple parser
+    	protected ResponseTimeThresholdConfig thresholds; // optional; default uses apdex-based thresholds
+        
+    	protected AnalysisStrategyFactoryBuilder strategyFactoryBuilder; // optional; default determined by subclass
+    	protected ClockServiceBuilder clockServiceBuilder; // optional; default builds simulated clock service
+    	protected TupleSourceServiceBuilder tupleSourceServiceBuilder; // optional; default reads input records from input source
     	
     	protected Builder () {}
     	
     	public Builder withInputSource (InputSource inputSource) {
     		this.inputSource = inputSource;
-    		this.keyAttributes = createKeyAttributes();
-    		this.tupleParser = createTupleParser();
     		return this;
     	}
     	
@@ -106,8 +128,36 @@ public abstract class AbstractResponseTimeAnalyzerFactory implements AnalyzerFac
     		return this;
     	}
     	
+    	public Builder withKeyAttributes (Attributes keyAttributes) {
+    		if (!tupleSchema.containsAll(keyAttributes)) {
+    			throw new IllegalArgumentException("The specified key contains attributes which are not supported by the schema for response time tuples");
+    		}
+    		this.keyAttributes = keyAttributes;
+    		return this;
+    	}
+    	
+    	public Builder withTupleParser (TupleParser tupleParser) {
+    		this.tupleParser = tupleParser;
+    		return this;
+    	}
+    	
     	public Builder withThresholds (ResponseTimeThresholdConfig thresholds) {
     		this.thresholds = thresholds;
+    		return this;
+    	}
+    	
+    	public Builder withStrategyFactoryBuilder (AnalysisStrategyFactoryBuilder strategyFactoryBuilder) {
+    		this.strategyFactoryBuilder = strategyFactoryBuilder;
+    		return this;
+    	}
+    	
+    	public Builder withClockServiceBuilder (ClockServiceBuilder clockServiceBuilder) {
+    		this.clockServiceBuilder = clockServiceBuilder;
+    		return this;
+    	}
+    	
+    	public Builder withTupleSourceServiceBuilder (TupleSourceServiceBuilder tupleSourceServiceBuilder) {
+    		this.tupleSourceServiceBuilder = tupleSourceServiceBuilder;
     		return this;
     	}
     	
@@ -117,6 +167,12 @@ public abstract class AbstractResponseTimeAnalyzerFactory implements AnalyzerFac
     		this.config = createConfig(this.configProps);
     		if (this.thresholds == null) {
     		    this.thresholds = createThresholds(this.keyAttributes);
+    		}
+    		if (this.keyAttributes == null) {
+    		    this.keyAttributes = createKeyAttributes();
+    		}
+    		if (this.tupleParser == null) {
+    		    this.tupleParser = createTupleParser();
     		}
     		return doBuild();
     	}

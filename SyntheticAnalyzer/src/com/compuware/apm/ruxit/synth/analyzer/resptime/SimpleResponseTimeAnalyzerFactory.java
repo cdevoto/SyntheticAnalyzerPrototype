@@ -1,5 +1,8 @@
 package com.compuware.apm.ruxit.synth.analyzer.resptime;
 
+import com.compuware.apm.ruxit.synth.analyzer.model.Attributes;
+import com.compuware.apm.ruxit.synth.analyzer.model.Tuple;
+import com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTimeThresholdConfig;
 import com.compuware.apm.ruxit.synth.analyzer.resptime.strategy.SimpleResponseTimeStrategyFactory;
 import com.compuware.apm.ruxit.synth.analyzer.strategy.AnalysisStrategyFactory;
 
@@ -13,10 +16,10 @@ public class SimpleResponseTimeAnalyzerFactory extends AbstractResponseTimeAnaly
 		super(builder);
 	}
 
-	protected AnalysisStrategyFactory createAnalysisStrategyFactory() {
+	protected AnalysisStrategyFactory createAnalysisStrategyFactory(Attributes keyAttributes, Tuple config, ResponseTimeThresholdConfig thresholds) {
 		AnalysisStrategyFactory strategyFactory = SimpleResponseTimeStrategyFactory.newResponseTimeStrategyFactory()
-				.withConfig(this.config)
-				.withKeyAttributes(this.keyAttributes)
+				.withConfig(config)
+				.withKeyAttributes(keyAttributes)
 				.withResponseTimeThresholdConfig(thresholds)
 				.build();
 		return strategyFactory;
