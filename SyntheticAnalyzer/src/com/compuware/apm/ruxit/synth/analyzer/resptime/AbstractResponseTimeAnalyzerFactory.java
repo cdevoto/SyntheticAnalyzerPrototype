@@ -102,7 +102,7 @@ public abstract class AbstractResponseTimeAnalyzerFactory implements AnalyzerFac
 	}
 
 	public static abstract class Builder {
-      	private static final Attributes tupleSchema = ResponseTimeAttributes.ATTRIBUTES;
+      	private static final Attributes TUPLE_SCHEMA = ResponseTimeAttributes.ATTRIBUTES;
       	
       	protected InputSource inputSource; // mandatory
     	protected Properties configProps; // mandatory
@@ -129,7 +129,7 @@ public abstract class AbstractResponseTimeAnalyzerFactory implements AnalyzerFac
     	}
     	
     	public Builder withKeyAttributes (Attributes keyAttributes) {
-    		if (!tupleSchema.containsAll(keyAttributes)) {
+    		if (!TUPLE_SCHEMA.containsAll(keyAttributes)) {
     			throw new IllegalArgumentException("The specified key contains attributes which are not supported by the schema for response time tuples");
     		}
     		this.keyAttributes = keyAttributes;
@@ -181,7 +181,7 @@ public abstract class AbstractResponseTimeAnalyzerFactory implements AnalyzerFac
     	
         protected TupleParser createTupleParser() {
     		TupleParser parser =  newResponseTimeTupleParser()
-    				.withSchema(this.tupleSchema)
+    				.withSchema(TUPLE_SCHEMA)
     				.build();
     		return parser;
     	}
