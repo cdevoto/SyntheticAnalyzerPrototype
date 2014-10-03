@@ -95,6 +95,32 @@ public class Util {
  		return tuples;
      }
 
+    public static List<Tuple> generateDenseTuples3 () {
+ 		Attributes keyAttributes = Attributes.newAttributes()
+ 				.withAttribute(ResponseTimeAttributes.TEST_DEF_ID)
+ 				.withAttribute(ResponseTimeAttributes.STEP_ID)
+ 				.build();
+ 		long now = 1412182929622L;
+
+     	TupleGenerationConfig genConfig1 = newTupleGenerationConfig()
+ 		.withKey(TupleImpl.newTuple(keyAttributes)
+ 				.withValue(ResponseTimeAttributes.TEST_DEF_ID, "1")
+ 				.withValue(ResponseTimeAttributes.STEP_ID, "1")
+ 				.build())
+ 		.withStartTime(now)
+ 		.withMinResponseTime(0.7)
+ 		.withResponseTimeIncrement(0.5)
+ 		.withMaxResponseTime(1.2)
+ 		.withInterval(TimeUnit.MILLISECONDS.convert(10, TimeUnit.SECONDS))
+ 		.withNumCycles(20)
+ 		.withTaperTuples(50)
+ 		.build();
+         
+ 		List<Tuple> tuples = TupleGenerationUtil.generateTuples(genConfig1);
+     	
+ 		return tuples;
+     }
+
     public static List<Tuple> generateSparseTuples1 () {
 		Attributes keyAttributes = Attributes.newAttributes()
 				.withAttribute(ResponseTimeAttributes.TEST_DEF_ID)
@@ -177,8 +203,11 @@ public class Util {
 				System.out.println(event);
 			}
 		}
-		List<String> expected = Arrays.asList(expectedStrings);
-        assertThat(actual, equalTo(expected));
+		
+		int i = 0;
+		for (String event : actual) {
+			assertThat(event, equalTo(expectedStrings[i++]));
+		}
 	}
 	
 	public static interface AnalyzerFactoryBuilder {

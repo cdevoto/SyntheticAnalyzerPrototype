@@ -165,11 +165,11 @@ public abstract class AbstractResponseTimeAnalyzerFactory implements AnalyzerFac
     		BuilderUtil.validateNotNull("inputSource", inputSource);
     		BuilderUtil.validateNotNull("configProps", configProps);
     		this.config = createConfig(this.configProps);
-    		if (this.thresholds == null) {
-    		    this.thresholds = createThresholds(this.keyAttributes);
-    		}
     		if (this.keyAttributes == null) {
     		    this.keyAttributes = createKeyAttributes();
+    		}
+    		if (this.thresholds == null) {
+    		    this.thresholds = createThresholds(this.keyAttributes);
     		}
     		if (this.tupleParser == null) {
     		    this.tupleParser = createTupleParser();

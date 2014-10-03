@@ -40,6 +40,8 @@ public class BinomialTestResponseTimeStrategy extends AbstractResponseTimeStrate
 	private PriorityQueue<Tuple> queue = new PriorityQueue<>(this.config.get(MAX_QUEUE_SIZE) + 1, new QueueTupleComparator());	
     private BinomialTest binomialTest = new BinomialTest();
     private Tuple mostRecentTupleInQueue = null;
+    private Tuple mostRecentErrorTuple = null;
+    private Tuple mostRecentNormalTuple = null;
 
 	public static Builder newBinomialTestResponseTimeStrategy (Attributes keyAttributes) {
     	return new Builder(keyAttributes);
@@ -55,15 +57,21 @@ public class BinomialTestResponseTimeStrategy extends AbstractResponseTimeStrate
 		if (tupleTime < getCurrentTime() - config.get(OUT_OF_ORDER_THRESHOLD)) {
 			return; // the observation received is too stale, so we ignore it
 		}
+
+		Tuple queueTuple = newQueueTuple(tuple);
+		addTupleToQueue(queueTuple);
 		
 		long testTime = tuple.get(TEST_TIME);
 		if (testTime >= this.timeOfLastTuple) {
 		    this.timeOfLastTuple = testTime;
-		    this.mostRecentTupleInQueue = tuple; 
+		    this.mostRecentTupleInQueue = tuple;
+		    if (queueTuple.get(QUEUE_TUPLE_BREACH)) {
+		    	this.mostRecentErrorTuple = tuple;
+		    } else {
+		    	this.mostRecentNormalTuple = tuple;
+		    }
 		}
 
-		Tuple queueTuple = newQueueTuple(tuple);
-		addTupleToQueue(queueTuple);
 		
 		adjustQueueBasedOnConstraints();
 		
@@ -86,9 +94,9 @@ public class BinomialTestResponseTimeStrategy extends AbstractResponseTimeStrate
 	private void performEval(Tuple tuple) {
 		this.timeOfLastEval = getCurrentTime();
 		if (status == Status.NORMAL && shouldAlert()) {
-			generateEvent(AnalyzerEvent.Type.ALERT, this.timeOfLastTuple, tuple);
+			generateEvent(AnalyzerEvent.Type.ALERT, this.timeOfLastTuple, getMostRecentErrorTuple());
 		} else if (status == Status.ALERT && !shouldAlert()) {
-			generateEvent(AnalyzerEvent.Type.RETURN_TO_NORMAL, this.timeOfLastTuple, tuple);
+			generateEvent(AnalyzerEvent.Type.RETURN_TO_NORMAL, this.timeOfLastTuple, getMostRecentNormalTuple());
 		}
 	}
 	
@@ -164,6 +172,14 @@ public class BinomialTestResponseTimeStrategy extends AbstractResponseTimeStrate
 	private Tuple getMostRecentTupleInQueue () {
 		return this.mostRecentTupleInQueue;
 	}
+	private Tuple getMostRecentNormalTuple() {
+		return this.mostRecentNormalTuple;
+	}
+
+	private Tuple getMostRecentErrorTuple() {
+		return this.mostRecentErrorTuple;
+	}
+
 	private void addTupleToQueue(Tuple queueTuple) {
 		queue.add(queueTuple);
         if (queueTuple.get(QUEUE_TUPLE_BREACH)) {
@@ -178,6 +194,8 @@ public class BinomialTestResponseTimeStrategy extends AbstractResponseTimeStrate
         }
         if (queue.isEmpty()) {
         	this.mostRecentTupleInQueue = null;
+        	this.mostRecentErrorTuple = null;
+        	this.mostRecentNormalTuple = null;
         }
 	}
 

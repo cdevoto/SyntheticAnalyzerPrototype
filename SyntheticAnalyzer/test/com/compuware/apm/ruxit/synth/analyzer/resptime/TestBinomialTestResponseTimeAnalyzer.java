@@ -66,6 +66,22 @@ public class TestBinomialTestResponseTimeAnalyzer {
 	}
 
 	@Test
+	public void testDenseData3() throws IOException {
+		// Testing with tuples that arrive every 5 minutes with a lot of sharp spikes and dips
+		// Compare these results to the same test within TestSimpleTestResponseTimeAnalyzer.
+		
+		List<Tuple> tuples = Util.generateDenseTuples3();
+		String [] expectedStrings = {
+				"[time=1412183189622, type=ALERT, key=1|1, tuple=1412183179622|1|1|1.2000]",
+				"[time=1412183849622, type=RETURN_TO_NORMAL, key=1|1, tuple=1412183849622|1|1|0.7000]"
+		};
+		
+		Util.AnalyzerFactoryBuilder builder = getBuilder();
+		Util.assertAnalyzerOutputs(tuples, expectedStrings, builder, true);
+		
+	}
+
+	@Test
 	public void testSparseData1() throws IOException {
 		// Testing with tuples that arrive every 1 hour
 		// This tests whether the MAX_QUEUE_TIME_WINDOW is being enforced as well as whether
