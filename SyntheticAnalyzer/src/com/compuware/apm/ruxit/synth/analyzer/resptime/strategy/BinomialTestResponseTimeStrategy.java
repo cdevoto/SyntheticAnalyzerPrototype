@@ -39,7 +39,6 @@ public class BinomialTestResponseTimeStrategy extends AbstractResponseTimeStrate
 	private int numBreaches = 0;
 	private PriorityQueue<Tuple> queue = new PriorityQueue<>(this.config.get(MAX_QUEUE_SIZE) + 1, new QueueTupleComparator());	
     private BinomialTest binomialTest = new BinomialTest();
-    private Tuple mostRecentTupleInQueue = null;
     private Tuple mostRecentErrorTuple = null;
     private Tuple mostRecentNormalTuple = null;
 
@@ -64,7 +63,6 @@ public class BinomialTestResponseTimeStrategy extends AbstractResponseTimeStrate
 		long testTime = tuple.get(TEST_TIME);
 		if (testTime >= this.timeOfLastTuple) {
 		    this.timeOfLastTuple = testTime;
-		    this.mostRecentTupleInQueue = tuple;
 		    if (queueTuple.get(QUEUE_TUPLE_BREACH)) {
 		    	this.mostRecentErrorTuple = tuple;
 		    } else {
@@ -76,7 +74,7 @@ public class BinomialTestResponseTimeStrategy extends AbstractResponseTimeStrate
 		adjustQueueBasedOnConstraints();
 		
 		if (isEligibleForEval()) {
-			performEval(tuple);
+			performEval();
 		}
 	}
 
@@ -86,12 +84,11 @@ public class BinomialTestResponseTimeStrategy extends AbstractResponseTimeStrate
 		boolean queueChanged = adjustQueueBasedOnConstraints();
 		
 		if (queueChanged && isEligibleForEval()) {
-			Tuple tuple = getMostRecentTupleInQueue();
-			performEval(tuple);
+			performEval();
 		}
 	}
 
-	private void performEval(Tuple tuple) {
+	private void performEval() {
 		this.timeOfLastEval = getCurrentTime();
 		if (status == Status.NORMAL && shouldAlert()) {
 			generateEvent(AnalyzerEvent.Type.ALERT, this.timeOfLastTuple, getMostRecentErrorTuple());
@@ -169,9 +166,6 @@ public class BinomialTestResponseTimeStrategy extends AbstractResponseTimeStrate
 		}
 	}
 
-	private Tuple getMostRecentTupleInQueue () {
-		return this.mostRecentTupleInQueue;
-	}
 	private Tuple getMostRecentNormalTuple() {
 		return this.mostRecentNormalTuple;
 	}
@@ -193,7 +187,6 @@ public class BinomialTestResponseTimeStrategy extends AbstractResponseTimeStrate
         	numBreaches--;
         }
         if (queue.isEmpty()) {
-        	this.mostRecentTupleInQueue = null;
         	this.mostRecentErrorTuple = null;
         	this.mostRecentNormalTuple = null;
         }

@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
+import com.compuware.apm.ruxit.synth.analyzer.model.Attributes;
 import com.compuware.apm.ruxit.synth.analyzer.model.Tuple;
 import com.compuware.apm.ruxit.synth.analyzer.model.TupleImpl;
 import com.compuware.apm.ruxit.synth.analyzer.resptime.model.ResponseTimeAttributes;
@@ -14,7 +15,6 @@ public class TupleGenerationUtil {
 
 	public static List<Tuple> generateTuples(TupleGenerationConfig ... genConfigs) {
 		Set<Tuple> tuples = new TreeSet<>(new Comparator<Tuple> () {
-
 			@Override
 			public int compare(Tuple t1, Tuple t2) {
 				long testTime1 = t1.get(ResponseTimeAttributes.TEST_TIME);
@@ -24,7 +24,16 @@ public class TupleGenerationUtil {
 				} else if (testTime1 > testTime2) {
 					return 1;
 				} 
-				return t1.hashCode() - t2.hashCode();
+				
+				String testDefId1 = t1.get(ResponseTimeAttributes.TEST_DEF_ID);
+				String testDefId2 = t2.get(ResponseTimeAttributes.TEST_DEF_ID);
+				int result = testDefId1.compareTo(testDefId2);
+				if (result == 0) {
+					String stepId1 = t1.get(ResponseTimeAttributes.STEP_ID);
+					String stepId2 = t2.get(ResponseTimeAttributes.STEP_ID);
+					result = stepId1.compareTo(stepId2);
+				}
+				return result;
 			}
 		});
 		
