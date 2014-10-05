@@ -39,8 +39,8 @@ public class TestBinomialTestResponseTimeAnalyzer {
 		String [] expectedStrings = {
 				"[time=1412184429622, type=ALERT, key=1|2, tuple=1412184429622|1|2|1.5000]",
 				"[time=1412185029622, type=ALERT, key=1|1, tuple=1412185029622|1|1|1.2000]",
-				"[time=1412194929622, type=RETURN_TO_NORMAL, key=1|2, tuple=1412194929622|1|2|0.5000]",
-				"[time=1412196129622, type=RETURN_TO_NORMAL, key=1|1, tuple=1412196129622|1|1|0.5000]"
+				"[time=1412195229622, type=RETURN_TO_NORMAL, key=1|2, tuple=1412195229622|1|2|0.5000]",
+				"[time=1412196429622, type=RETURN_TO_NORMAL, key=1|1, tuple=1412196429622|1|1|0.5000]"
 		};
 		
 		Util.AnalyzerFactoryBuilder builder = getBuilder();
@@ -73,7 +73,7 @@ public class TestBinomialTestResponseTimeAnalyzer {
 		List<Tuple> tuples = Util.generateDenseTuples3();
 		String [] expectedStrings = {
 				"[time=1412183189622, type=ALERT, key=1|1, tuple=1412183179622|1|1|1.2000]",
-				"[time=1412183849622, type=RETURN_TO_NORMAL, key=1|1, tuple=1412183849622|1|1|0.7000]"
+				"[time=1412183909622, type=RETURN_TO_NORMAL, key=1|1, tuple=1412183909622|1|1|0.7000]"
 		};
 		
 		Util.AnalyzerFactoryBuilder builder = getBuilder();

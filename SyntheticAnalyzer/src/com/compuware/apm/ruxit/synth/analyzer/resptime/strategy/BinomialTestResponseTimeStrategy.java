@@ -26,7 +26,8 @@ import com.compuware.apm.ruxit.synth.analyzer.resptime.util.SimpleParserUtil;
 
 public class BinomialTestResponseTimeStrategy extends AbstractResponseTimeStrategy {
 
-	private static final double ALPHA = 0.05;
+	private static final double ALERT_ALPHA = 0.05;
+	private static final double DEALERT_ALPHA = 0.10;
 	private static final Attribute<Long> QUEUE_TUPLE_TIME = new Attribute<>(Long.class, "QUEUE_TUPLE_TIME");
 	private static final Attribute<Boolean> QUEUE_TUPLE_BREACH = new Attribute<>(Boolean.class, "QUEUE_TUPLE_BREACH");
 	private static final Attributes QUEUE_TUPLE_SCHEMA = Attributes.newAttributes()
@@ -105,9 +106,15 @@ public class BinomialTestResponseTimeStrategy extends AbstractResponseTimeStrate
 			}
 			return false;
 		} else {
+			double alpha;
+			if (status == Status.ALERT) {
+				alpha = DEALERT_ALPHA;
+			} else {
+				alpha = ALERT_ALPHA;
+			}
 			boolean shouldAlert = binomialTest.binomialTest(queue.size(), numBreaches,
 					config.get(DEFAULT_ANOMALY_THRESHOLD),
-					AlternativeHypothesis.GREATER_THAN, ALPHA);
+					AlternativeHypothesis.GREATER_THAN, alpha);
 			// TODO: replace the following clause with logging statements
 			if (config.get(DEBUG)) {
 			   double p = BinomialTestUtil.getCumulativeProbability(queue.size(), numBreaches, config.get(DEFAULT_ANOMALY_THRESHOLD));
