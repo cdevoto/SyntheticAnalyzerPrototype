@@ -1,20 +1,18 @@
 package com.compuware.apm.ruxit.synth.analyzer.resptime.strategy;
 
+import static com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTimeConfigProperties.DEBUG;
 import static com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTimeConfigProperties.DEFAULT_ANOMALY_THRESHOLD;
 import static com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTimeConfigProperties.MAX_QUEUE_SIZE;
 import static com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTimeConfigProperties.MAX_QUEUE_TIME_WINDOW;
 import static com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTimeConfigProperties.MIN_EVALUATION_GAP;
 import static com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTimeConfigProperties.MIN_SAMPLE_SIZE;
 import static com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTimeConfigProperties.OUT_OF_ORDER_THRESHOLD;
-import static com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTimeConfigProperties.*;
+import static com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTimeConfigProperties.SAMPLE_SIZE_STRATEGY_THRESHOLD;
 import static com.compuware.apm.ruxit.synth.analyzer.resptime.model.ResponseTimeAttributes.RESPONSE_TIME;
 import static com.compuware.apm.ruxit.synth.analyzer.resptime.model.ResponseTimeAttributes.TEST_TIME;
 
 import java.util.Comparator;
 import java.util.PriorityQueue;
-
-import org.apache.commons.math3.stat.inference.AlternativeHypothesis;
-import org.apache.commons.math3.stat.inference.BinomialTest;
 
 import com.compuware.apm.ruxit.synth.analyzer.model.Attribute;
 import com.compuware.apm.ruxit.synth.analyzer.model.Attributes;
@@ -28,6 +26,8 @@ public class BinomialTestResponseTimeStrategy extends AbstractResponseTimeStrate
 
 	private static final double ALERT_ALPHA = 0.05;
 	private static final double DEALERT_ALPHA = 0.10;
+	private static final double ALPHA_COOLDOWN = -0.005;
+	
 	private static final Attribute<Long> QUEUE_TUPLE_TIME = new Attribute<>(Long.class, "QUEUE_TUPLE_TIME");
 	private static final Attribute<Boolean> QUEUE_TUPLE_BREACH = new Attribute<>(Boolean.class, "QUEUE_TUPLE_BREACH");
 	private static final Attributes QUEUE_TUPLE_SCHEMA = Attributes.newAttributes()
@@ -39,9 +39,9 @@ public class BinomialTestResponseTimeStrategy extends AbstractResponseTimeStrate
 	private long timeOfLastEval = 0;
 	private int numBreaches = 0;
 	private PriorityQueue<Tuple> queue = new PriorityQueue<>(this.config.get(MAX_QUEUE_SIZE) + 1, new QueueTupleComparator());	
-    private BinomialTest binomialTest = new BinomialTest();
     private Tuple mostRecentErrorTuple = null;
     private Tuple mostRecentNormalTuple = null;
+    private double alpha = ALERT_ALPHA;
 
 	public static Builder newBinomialTestResponseTimeStrategy (Attributes keyAttributes) {
     	return new Builder(keyAttributes);
@@ -106,22 +106,25 @@ public class BinomialTestResponseTimeStrategy extends AbstractResponseTimeStrate
 			}
 			return false;
 		} else {
-			double alpha;
-			if (status == Status.ALERT) {
-				alpha = DEALERT_ALPHA;
-			} else {
-				alpha = ALERT_ALPHA;
-			}
-			boolean shouldAlert = binomialTest.binomialTest(queue.size(), numBreaches,
-					config.get(DEFAULT_ANOMALY_THRESHOLD),
-					AlternativeHypothesis.GREATER_THAN, alpha);
+			 double p = BinomialTestUtil.getCumulativeProbability(queue.size(), numBreaches, config.get(DEFAULT_ANOMALY_THRESHOLD));
+			boolean shouldAlert = p < this.alpha;
+			updateAlpha(shouldAlert, p);
 			// TODO: replace the following clause with logging statements
 			if (config.get(DEBUG)) {
-			   double p = BinomialTestUtil.getCumulativeProbability(queue.size(), numBreaches, config.get(DEFAULT_ANOMALY_THRESHOLD));
-			   System.out.printf("time=%d, key=%s, numBreaches=%d, queueSize=%d, errorRate=%,.10f, p=%,.10f, shouldAlert=%s%n", getCurrentTime(), SimpleParserUtil.toString(this.key),numBreaches, queue.size(), getErrorRate(), p, String.valueOf(shouldAlert));
+			   System.out.printf("time=%d, key=%s, numBreaches=%d, queueSize=%d, errorRate=%,.10f, p=%,.10f, shouldAlert=%s, alpha=%,.4f%n", getCurrentTime(), SimpleParserUtil.toString(this.key),numBreaches, queue.size(), getErrorRate(), p, String.valueOf(shouldAlert), this.alpha);
 			}
 			return shouldAlert;
 		}		
+	}
+
+	private void updateAlpha(boolean shouldAlert, double p) {
+		if (shouldAlert && this.status == Status.NORMAL) {
+			this.alpha = DEALERT_ALPHA;
+		} else if (!shouldAlert && this.status == Status.ALERT) {
+			this.alpha = ALERT_ALPHA;
+		} else if (p > ALERT_ALPHA && this.alpha > ALERT_ALPHA) {
+			this.alpha += ALPHA_COOLDOWN; 
+		}
 	}
 
 	private double getErrorRate() {
