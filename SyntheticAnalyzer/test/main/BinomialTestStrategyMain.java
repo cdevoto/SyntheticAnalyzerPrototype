@@ -1,4 +1,6 @@
 package main;
+import static com.compuware.apm.ruxit.synth.analyzer.resptime.input.parser.SimpleResponseTimeThresholdParser.newSimpleResponseTimeThresholdParser;
+
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,6 +17,8 @@ import com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTimeThresh
 import com.compuware.apm.ruxit.synth.analyzer.resptime.config.SimpleResponseTimeThresholdConfig;
 import com.compuware.apm.ruxit.synth.analyzer.resptime.input.FileInputSource;
 import com.compuware.apm.ruxit.synth.analyzer.resptime.input.InputSource;
+import com.compuware.apm.ruxit.synth.analyzer.resptime.input.parser.SimpleResponseTimeThresholdParser;
+import com.compuware.apm.ruxit.synth.analyzer.resptime.input.parser.TestSimpleResponseTimeThresholdParser;
 import com.compuware.apm.ruxit.synth.analyzer.resptime.model.ResponseTimeAttributes;
 import com.compuware.apm.ruxit.synth.analyzer.resptime.util.ResponseTimeStrategyUtil;
 
@@ -41,33 +45,13 @@ public class BinomialTestStrategyMain {
 		}
 		
 		// Configure the thresholds which will be used for each entity
-		Attributes keyAttributes = Attributes.newAttributes()
-				.withAttribute(ResponseTimeAttributes.TEST_DEF_ID)
-				.withAttribute(ResponseTimeAttributes.STEP_ID)
+		SimpleResponseTimeThresholdParser parser = newSimpleResponseTimeThresholdParser()
 				.build();
-		
-		ResponseTimeThresholdConfig thresholds = SimpleResponseTimeThresholdConfig.newSimpleResponseTimeThresholdConfig(keyAttributes)
-				.withThreshold(TupleImpl.newTuple(keyAttributes)
-						.withValue(ResponseTimeAttributes.TEST_DEF_ID, "1")
-						.withValue(ResponseTimeAttributes.STEP_ID, "1")
-						.build(), 1.0)
-				.withThreshold(TupleImpl.newTuple(keyAttributes)
-						.withValue(ResponseTimeAttributes.TEST_DEF_ID, "1")
-						.withValue(ResponseTimeAttributes.STEP_ID, "2")
-						.build(), 1.0)
-				.withThreshold(TupleImpl.newTuple(keyAttributes)
-						.withValue(ResponseTimeAttributes.TEST_DEF_ID, "2")
-						.withValue(ResponseTimeAttributes.STEP_ID, "1")
-						.build(), 1.0)
-				.withThreshold(TupleImpl.newTuple(keyAttributes)
-						.withValue(ResponseTimeAttributes.TEST_DEF_ID, "2")
-						.withValue(ResponseTimeAttributes.STEP_ID, "2")
-						.build(), 1.0)
-				.withThreshold(TupleImpl.newTuple(keyAttributes)
-						.withValue(ResponseTimeAttributes.TEST_DEF_ID, "3")
-						.withValue(ResponseTimeAttributes.STEP_ID, "1")
-						.build(), 1.0)
-				.build();
+		Properties props = new Properties();
+		try (InputStream in = TestSimpleResponseTimeThresholdParser.class.getResourceAsStream("thresholds.properties")) {
+			props.load(in);
+		}
+		ResponseTimeThresholdConfig thresholds = parser.parse(props);
 		
 		// Create the analyzer
 		AnalyzerFactory factory = BinomialTestResponseTimeAnalyzerFactory.newResponseTimeAnalyzerFactory()

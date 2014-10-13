@@ -25,7 +25,14 @@ public class SimpleResponseTimeThresholdConfig implements ResponseTimeThresholdC
 		}
 		return threshold;
 	}
+
 	
+	@Override
+	public String toString() {
+		return "SimpleResponseTimeThresholdConfig [thresholds=" + thresholds
+				+ "]";
+	}
+
 	public static class Builder {
 		private Attributes keyAttributes;
 		private Map<Tuple, Double> thresholds = new HashMap<>();
