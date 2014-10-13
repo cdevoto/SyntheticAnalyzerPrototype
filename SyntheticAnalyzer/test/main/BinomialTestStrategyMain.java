@@ -23,7 +23,7 @@ import com.compuware.apm.ruxit.synth.analyzer.resptime.util.ResponseTimeStrategy
 public class BinomialTestStrategyMain {
 
 	public static void main(String[] args) throws IOException {
-		String inputFile = "test-binomial-strategy.dat";
+		String inputFile = "test-data-1.dat";
         String configFile = "config.properties";
         
         // If the name of the input file was included as a command-line arg, use it.
