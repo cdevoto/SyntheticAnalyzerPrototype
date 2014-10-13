@@ -1,3 +1,4 @@
+package main;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -9,7 +10,7 @@ import com.compuware.apm.ruxit.synth.analyzer.model.Attributes;
 import com.compuware.apm.ruxit.synth.analyzer.model.TupleImpl;
 import com.compuware.apm.ruxit.synth.analyzer.output.AnalyzerEvent;
 import com.compuware.apm.ruxit.synth.analyzer.output.EventListener;
-import com.compuware.apm.ruxit.synth.analyzer.resptime.BinomialTestResponseTimeAnalyzerFactory;
+import com.compuware.apm.ruxit.synth.analyzer.resptime.SimpleResponseTimeAnalyzerFactory;
 import com.compuware.apm.ruxit.synth.analyzer.resptime.config.ResponseTimeThresholdConfig;
 import com.compuware.apm.ruxit.synth.analyzer.resptime.config.SimpleResponseTimeThresholdConfig;
 import com.compuware.apm.ruxit.synth.analyzer.resptime.input.FileInputSource;
@@ -19,11 +20,16 @@ import com.compuware.apm.ruxit.synth.analyzer.resptime.util.ResponseTimeStrategy
 
 
 
-public class Main {
+public class SimpleStrategyMain {
 
 	public static void main(String[] args) throws IOException {
-		String inputFile = "test-binomial-strategy.dat";
+		String inputFile = "test-data-1.dat";
         String configFile = "config.properties";
+        
+        // If the name of the input file was included as a command-line arg, use it.
+        if (args.length > 0) {
+        	inputFile = args[0];
+        }
         
         // Create an input source for the file containing the data to be analyzed
 		InputSource inputSource = new FileInputSource(inputFile);
@@ -64,7 +70,7 @@ public class Main {
 				.build();
 		
 		// Create the analyzer
-		AnalyzerFactory factory = BinomialTestResponseTimeAnalyzerFactory.newResponseTimeAnalyzerFactory()
+		AnalyzerFactory factory = SimpleResponseTimeAnalyzerFactory.newResponseTimeAnalyzerFactory()
 				.withConfigProperties(configProps)
 				.withInputSource(inputSource)
 				.withThresholds(thresholds)

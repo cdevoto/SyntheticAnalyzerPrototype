@@ -1,3 +1,4 @@
+package main.generatedata;
 
 
 import static com.compuware.apm.ruxit.synth.analyzer.resptime.util.TupleGenerationConfig.newTupleGenerationConfig;
@@ -16,10 +17,10 @@ import com.compuware.apm.ruxit.synth.analyzer.resptime.util.SimpleParserUtil;
 import com.compuware.apm.ruxit.synth.analyzer.resptime.util.TupleGenerationConfig;
 import com.compuware.apm.ruxit.synth.analyzer.resptime.util.TupleGenerationUtil;
 
-public class GenerateTestData {
+public class GenerateTestData2 {
 	
 	public static void main(String[] args) throws IOException {
-		String outputFile = "test-binomial-strategy.dat";
+		String outputFile = "test-data-2.dat";
 		
 		Attributes keyAttributes = Attributes.newAttributes()
 				.withAttribute(ResponseTimeAttributes.TEST_DEF_ID)
